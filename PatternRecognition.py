@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from keras.datasets import mnist
+from imblearn.under_sampling import RandomUnderSampler
 from tensorflow.keras.utils import to_categorical
 from sklearn import svm, metrics
 from sklearn.linear_model import LogisticRegression
@@ -23,10 +24,21 @@ class MNISTClassificationBaseModel(ABC):
     self._original_dataset = (np.copy(self._x_train), np.copy(self._y_train), 
                               np.copy(self._x_test), np.copy(self._y_test))
 
+    self.shape_data()
+
+    if balanced is True:
+      self.balance_dataset()
+
     if noise_type == 'asym':
       self.induce_asym_noise(noise_ratio)
+      clean_selected = np.argwhere(self.get_training_label() == self.get_original_dataset()[1]).reshape((-1,))
+      noisy_selected = np.argwhere(self.get_training_label() != self.get_original_dataset()[1]).reshape((-1,))
+      print("#correct labels: %s, #incorrect labels: %s" % (len(clean_selected), len(noisy_selected)))
     elif noise_type == 'sym':
       self.induce_sym_noise(noise_ratio)
+      clean_selected = np.argwhere(self.get_training_label() == self.get_original_dataset()[1]).reshape((-1,))
+      noisy_selected = np.argwhere(self.get_training_label() != self.get_original_dataset()[1]).reshape((-1,))
+      print("#correct labels: %s, #incorrect labels: %s" % (len(clean_selected), len(noisy_selected)))
     elif noise_type == 'No Noise':
       pass
     else:
@@ -75,10 +87,10 @@ class MNISTClassificationBaseModel(ABC):
     plt.show()
 
   def print_accuracy(self, predicted):
-    print('Accuracy for the predicted labels : ' , accuracy_score(s.get_test_label(), predicted) * 100)
+    print('Accuracy for the predicted labels : ' , accuracy_score(self.get_test_label(), predicted) * 100)
 
   def display_confusion_matrix(self, predicted):
-    cm = metrics.confusion_matrix(s.get_test_label(), predicted, 
+    cm = metrics.confusion_matrix(self.get_test_label(), predicted, 
                                   labels=MNISTClassificationBaseModel.classes)
     disp = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, 
                                           display_labels=MNISTClassificationBaseModel.classes)
@@ -130,6 +142,10 @@ class MNISTClassificationBaseModel(ABC):
 
     return misclassified_test_image, misclassified_actual_label, misclassified_predicted_label
 
+  def balance_dataset(self):
+    rus = RandomUnderSampler(random_state=123)
+    self._x_train, self._y_train = rus.fit_resample(self.get_training_image(), self.get_training_label())
+
   def induce_asym_noise(self, noise_ratio=40):
     source_class = [7, 2, 3, 5, 6]
     target_class = [1, 7, 8, 6, 5]
@@ -161,8 +177,9 @@ class MNISTClassificationBaseModel(ABC):
 
   def induce_sym_noise(self, noise_ratio=40):
     y_train_clean = np.copy(self.get_training_label())
-    n_samples = s.get_test_label().shape[0]
-    n_noisy = int(40 * n_samples / 100)
+    n_samples = self.get_training_label().shape[0]
+    n_noisy = int(noise_ratio * n_samples / 100)
+    # print(n_samples, n_noisy)
     class_index = [np.where(y_train_clean == i)[0] for i in range(MNISTClassificationBaseModel.class_count)]
     class_noisy = int(n_noisy / 10)
 
@@ -255,9 +272,8 @@ class SVMModel(MNISTClassificationBaseModel):
     return clf, predicted
 
 s = SVMModel(balanced=False, noise_type='No Noise', noise_ratio=0)
-s.show_class_distribution(True)
 s.scale_pixels()
-s.shape_data()
+s.show_class_distribution(False)
 clf, predicted = s.train_model()
 s.display_confusion_matrix(predicted)
 s.print_accuracy(predicted)
