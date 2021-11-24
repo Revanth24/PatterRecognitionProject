@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 import numpy as np
 
+np.random.seed(123)
 
 class MNISTClassificationBaseModel(ABC):
 
@@ -17,13 +18,19 @@ class MNISTClassificationBaseModel(ABC):
   classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
   @abstractmethod
-  def __init__(self, balanced=False, asym=False, noise_ratio=0):
+  def __init__(self, balanced=False, noise_type='No Noise', noise_ratio=0):
     (self._x_train, self._y_train), (self._x_test, self._y_test) = mnist.load_data()
-    self._original_dataset = (np.copy(self._x_train), np.copy(self._y_train),
+    self._original_dataset = (np.copy(self._x_train), np.copy(self._y_train), 
                               np.copy(self._x_test), np.copy(self._y_test))
 
-    if asym:
+    if noise_type == 'asym':
       self.induce_asym_noise(noise_ratio)
+    elif noise_type == 'sym':
+      self.induce_sym_noise(noise_ratio)
+    elif noise_type == 'No Noise':
+      pass
+    else:
+      raise ValueError('%s noise type is not recognized. Value can be asym, sym or No Noise' % noise_type)
 
   def get_original_dataset(self):
     return self._original_dataset;
@@ -71,9 +78,9 @@ class MNISTClassificationBaseModel(ABC):
     print('Accuracy for the predicted labels : ' , accuracy_score(s.get_test_label(), predicted) * 100)
 
   def display_confusion_matrix(self, predicted):
-    cm = metrics.confusion_matrix(s.get_test_label(), predicted,
+    cm = metrics.confusion_matrix(s.get_test_label(), predicted, 
                                   labels=MNISTClassificationBaseModel.classes)
-    disp = metrics.ConfusionMatrixDisplay(confusion_matrix=cm,
+    disp = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, 
                                           display_labels=MNISTClassificationBaseModel.classes)
     disp.plot()
     plt.show()
@@ -96,9 +103,9 @@ class MNISTClassificationBaseModel(ABC):
       subset_predicted_labels, predicted_labels = np.asarray(predicted_labels[:cols]), np.asarray(predicted_labels[cols:])
       subset_actual_labels, actual_labels = np.asarray(actual_labels[:cols]), np.asarray(actual_labels[cols:])
 
-      _, axes = plt.subplots(nrows=1, ncols=cols, figsize=(10, 3),
+      _, axes = plt.subplots(nrows=1, ncols=cols, figsize=(10, 3), 
                           constrained_layout=True)
-
+      
       for ax, image, actual_label, predicted_label in zip(axes, subset_images, subset_actual_labels, subset_predicted_labels):
         ax.set_axis_off()
         ax.imshow(image.reshape(MNISTClassificationBaseModel.original_dataset_shape), cmap='gray')
@@ -123,7 +130,7 @@ class MNISTClassificationBaseModel(ABC):
 
     return misclassified_test_image, misclassified_actual_label, misclassified_predicted_label
 
-  def induce_asym_noise(self, noise_ratio=0):
+  def induce_asym_noise(self, noise_ratio=40):
     source_class = [7, 2, 3, 5, 6]
     target_class = [1, 7, 8, 6, 5]
     y_train_clean = np.copy(self.get_training_label())
@@ -135,12 +142,38 @@ class MNISTClassificationBaseModel(ABC):
       # print('n_noisy',n_noisy)
       noisy_sample_index = np.random.choice(cls_idx, n_noisy, replace=False)
       # print(noisy_sample_index)
-      self._y_train[noisy_sample_index] = t
+      self._y_train[noisy_sample_index] = t   
 
     print("Print noisy label generation statistics:")
     for i in range(MNISTClassificationBaseModel.class_count):
       n_noisy = np.sum(self.get_training_label() == i)
       print("Noisy class %s, has %s samples." % (i, n_noisy))
+
+  def other_class(self, n_classes, current_class):
+    if current_class < 0 or current_class >= n_classes:
+        error_str = "class_ind must be within the range (0, nb_classes - 1)"
+        raise ValueError(error_str)
+
+    other_class_list = list(range(n_classes))
+    other_class_list.remove(current_class)
+    other_class = np.random.choice(other_class_list)
+    return other_class
+
+  def induce_sym_noise(self, noise_ratio=40):
+    y_train_clean = np.copy(self.get_training_label())
+    n_samples = s.get_test_label().shape[0]
+    n_noisy = int(40 * n_samples / 100)
+    class_index = [np.where(y_train_clean == i)[0] for i in range(MNISTClassificationBaseModel.class_count)]
+    class_noisy = int(n_noisy / 10)
+
+    noisy_idx = []
+    for d in range(MNISTClassificationBaseModel.class_count):
+      noisy_class_index = np.random.choice(class_index[d], class_noisy, replace=False)
+      noisy_idx.extend(noisy_class_index)
+
+    for i in noisy_idx:
+      self._y_train[i] = self.other_class(n_classes=MNISTClassificationBaseModel.class_count, 
+                                     current_class=self.get_training_label()[i])
 
   @abstractmethod
   def shape_data(self):
@@ -153,7 +186,7 @@ class MNISTClassificationBaseModel(ABC):
   @abstractmethod
   def pre_process_label(self):
     pass
-
+  
   @abstractmethod
   def _define_model(self):
     pass
@@ -162,9 +195,9 @@ class LRModel(MNISTClassificationBaseModel):
 
   shape = 784
 
-  def __init__(self, balanced=False, asym=False, noise_ratio=0):
+  def __init__(self, balanced=False, noise_type='No Noise', noise_ratio=0):
     # Call the parent constructor to load the mninst dataset
-    super().__init__(balanced, asym, noise_ratio)
+    super().__init__(balanced, noise_type, noise_ratio)
 
   def get_model_shape(self):
     return LRModel.shape
@@ -193,9 +226,9 @@ class SVMModel(MNISTClassificationBaseModel):
 
   shape = 784
 
-  def __init__(self, balanced=False, asym=False, noise_ratio=0):
+  def __init__(self, balanced=False, noise_type='No Noise', noise_ratio=0):
     # Call the parent constructor to load the mninst dataset
-    super().__init__(balanced, asym, noise_ratio)
+    super().__init__(balanced, noise_type, noise_ratio)
 
   def get_model_shape(self):
     return SVMModel.shape
@@ -221,7 +254,7 @@ class SVMModel(MNISTClassificationBaseModel):
 
     return clf, predicted
 
-s = SVMModel(balanced=False, asym=False, noise_ratio=40)
+s = SVMModel(balanced=False, noise_type='No Noise', noise_ratio=0)
 s.show_class_distribution(True)
 s.scale_pixels()
 s.shape_data()
