@@ -3,7 +3,7 @@
 from keras.datasets import mnist
 from imblearn.under_sampling import RandomUnderSampler
 from tensorflow.keras.utils import to_categorical
-from sklearn import svm, metrics
+from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from abc import ABC, abstractmethod
@@ -21,7 +21,7 @@ class MNISTClassificationBaseModel(ABC):
   @abstractmethod
   def __init__(self, balanced=False, noise_type='No Noise', noise_ratio=0):
     (self._x_train, self._y_train), (self._x_test, self._y_test) = mnist.load_data()
-    self._original_dataset = (np.copy(self._x_train), np.copy(self._y_train), 
+    self._original_dataset = (np.copy(self._x_train), np.copy(self._y_train),
                               np.copy(self._x_test), np.copy(self._y_test))
 
     self.shape_data()
@@ -90,9 +90,9 @@ class MNISTClassificationBaseModel(ABC):
     print('Accuracy for the predicted labels : ' , accuracy_score(self.get_test_label(), predicted) * 100)
 
   def display_confusion_matrix(self, predicted):
-    cm = metrics.confusion_matrix(self.get_test_label(), predicted, 
+    cm = metrics.confusion_matrix(self.get_test_label(), predicted,
                                   labels=MNISTClassificationBaseModel.classes)
-    disp = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, 
+    disp = metrics.ConfusionMatrixDisplay(confusion_matrix=cm,
                                           display_labels=MNISTClassificationBaseModel.classes)
     disp.plot()
     plt.show()
@@ -115,9 +115,9 @@ class MNISTClassificationBaseModel(ABC):
       subset_predicted_labels, predicted_labels = np.asarray(predicted_labels[:cols]), np.asarray(predicted_labels[cols:])
       subset_actual_labels, actual_labels = np.asarray(actual_labels[:cols]), np.asarray(actual_labels[cols:])
 
-      _, axes = plt.subplots(nrows=1, ncols=cols, figsize=(10, 3), 
+      _, axes = plt.subplots(nrows=1, ncols=cols, figsize=(10, 3),
                           constrained_layout=True)
-      
+
       for ax, image, actual_label, predicted_label in zip(axes, subset_images, subset_actual_labels, subset_predicted_labels):
         ax.set_axis_off()
         ax.imshow(image.reshape(MNISTClassificationBaseModel.original_dataset_shape), cmap='gray')
@@ -158,7 +158,7 @@ class MNISTClassificationBaseModel(ABC):
       # print('n_noisy',n_noisy)
       noisy_sample_index = np.random.choice(cls_idx, n_noisy, replace=False)
       # print(noisy_sample_index)
-      self._y_train[noisy_sample_index] = t   
+      self._y_train[noisy_sample_index] = t
 
     print("Print noisy label generation statistics:")
     for i in range(MNISTClassificationBaseModel.class_count):
@@ -189,7 +189,7 @@ class MNISTClassificationBaseModel(ABC):
       noisy_idx.extend(noisy_class_index)
 
     for i in noisy_idx:
-      self._y_train[i] = self.other_class(n_classes=MNISTClassificationBaseModel.class_count, 
+      self._y_train[i] = self.other_class(n_classes=MNISTClassificationBaseModel.class_count,
                                      current_class=self.get_training_label()[i])
 
   @abstractmethod
@@ -203,82 +203,7 @@ class MNISTClassificationBaseModel(ABC):
   @abstractmethod
   def pre_process_label(self):
     pass
-  
+
   @abstractmethod
   def _define_model(self):
     pass
-
-class LRModel(MNISTClassificationBaseModel):
-
-  shape = 784
-
-  def __init__(self, balanced=False, noise_type='No Noise', noise_ratio=0):
-    # Call the parent constructor to load the mninst dataset
-    super().__init__(balanced, noise_type, noise_ratio)
-
-  def get_model_shape(self):
-    return LRModel.shape
-
-  def shape_data(self):
-    self._x_train = self._x_train.reshape(-1, LRModel.shape)
-    self._x_test = self._x_test.reshape(-1, LRModel.shape)
-
-  def pre_process_label(self):
-    print('No label pre processing is required')
-
-  def _define_model(self):
-    return LogisticRegression(solver='lbfgs', max_iter=1000)
-
-  def train_model(self):
-    clf = self._define_model()
-    # Learn the digits on the train subset
-    clf.fit(self.get_training_image(), self.get_training_label())
-
-    # Predict the value of the digit on the test subset
-    predicted = clf.predict(self.get_test_image())
-
-    return clf, predicted
-
-class SVMModel(MNISTClassificationBaseModel):
-
-  shape = 784
-
-  def __init__(self, balanced=False, noise_type='No Noise', noise_ratio=0):
-    # Call the parent constructor to load the mninst dataset
-    super().__init__(balanced, noise_type, noise_ratio)
-
-  def get_model_shape(self):
-    return SVMModel.shape
-
-  def shape_data(self):
-    self._x_train = self._x_train.reshape(-1, SVMModel.shape)
-    self._x_test = self._x_test.reshape(-1, SVMModel.shape)
-
-  def pre_process_label(self):
-    print('No label pre processing is required')
-
-  def _define_model(self):
-    return svm.SVC()
-    # return svm.SVC(kernel='rbf', gamma=1, C=10)
-
-  def train_model(self):
-    clf = self._define_model()
-    # Learn the digits on the train subset
-    clf.fit(self.get_training_image(), self.get_training_label())
-
-    # Predict the value of the digit on the test subset
-    predicted = clf.predict(self.get_test_image())
-
-    return clf, predicted
-
-s = SVMModel(balanced=False, noise_type='No Noise', noise_ratio=0)
-s.scale_pixels()
-s.show_class_distribution(False)
-clf, predicted = s.train_model()
-s.display_confusion_matrix(predicted)
-s.print_accuracy(predicted)
-print(f"Classification report for classifier {clf}:\n"
-    f"{metrics.classification_report(s.get_test_label(), predicted)}\n")
-
-test_image, actual_label, predicted_label = s.get_misclassified(predicted)
-s.display_samples(test_image, actual_label, predicted_label, False)
