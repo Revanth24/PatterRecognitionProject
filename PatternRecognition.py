@@ -4,7 +4,6 @@ from keras.datasets import mnist
 from imblearn.under_sampling import RandomUnderSampler
 from tensorflow.keras.utils import to_categorical
 from sklearn import metrics
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
