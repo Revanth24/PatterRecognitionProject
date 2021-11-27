@@ -98,9 +98,9 @@ class MNISTClassificationBaseModel(ABC):
 
   def display_samples(self, images, actual_labels, predicted_labels, is_label_pre_processed):
 
-    images = images.reshape(-1, self.get_model_shape())
-    predicted_labels = predicted_labels.reshape(len(images))
-    actual_labels = actual_labels.reshape(len(images))
+    images = images.reshape(*self.get_model_shape())
+    predicted_labels = predicted_labels.squeeze()
+    actual_labels = actual_labels.squeeze()
 
     l = len(images)
 
@@ -134,11 +134,9 @@ class MNISTClassificationBaseModel(ABC):
 
   def get_misclassified(self, predicted):
     misclassified_indices = np.asarray(self._get_misclassified_indices(predicted))
-
-    misclassified_test_image = s.get_test_image()[misclassified_indices]
+    misclassified_test_image = self.get_test_image()[misclassified_indices]
     misclassified_predicted_label = predicted[misclassified_indices]
-    misclassified_actual_label = s.get_test_label()[misclassified_indices]
-
+    misclassified_actual_label = self.get_test_label()[misclassified_indices]
     return misclassified_test_image, misclassified_actual_label, misclassified_predicted_label
 
   def balance_dataset(self):

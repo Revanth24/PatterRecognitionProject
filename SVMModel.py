@@ -4,7 +4,7 @@ from sklearn import svm
 
 class SVMModel(MNISTClassificationBaseModel):
 
-  shape = 784
+  shape = (-1, 784)
 
   def __init__(self, balanced=False, noise_type='No Noise', noise_ratio=0):
     # Call the parent constructor to load the mninst dataset
@@ -14,8 +14,8 @@ class SVMModel(MNISTClassificationBaseModel):
     return SVMModel.shape
 
   def shape_data(self):
-    self._x_train = self._x_train.reshape(-1, SVMModel.shape)
-    self._x_test = self._x_test.reshape(-1, SVMModel.shape)
+    self._x_train = self._x_train.reshape(*SVMModel.shape)
+    self._x_test = self._x_test.reshape(*SVMModel.shape)
 
   def pre_process_label(self):
     print('No label pre processing is required')
