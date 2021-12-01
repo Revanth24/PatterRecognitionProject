@@ -23,10 +23,10 @@ class MNISTClassificationBaseModel(ABC):
     self._original_dataset = (np.copy(self._x_train), np.copy(self._y_train),
                               np.copy(self._x_test), np.copy(self._y_test))
 
-    self.shape_data()
-
     if balanced is True:
       self.balance_dataset()
+
+    self.shape_data()
 
     if noise_type == 'asym':
       self.induce_asym_noise(noise_ratio)
@@ -141,7 +141,9 @@ class MNISTClassificationBaseModel(ABC):
 
   def balance_dataset(self):
     rus = RandomUnderSampler(random_state=123)
+    self._x_train = self._x_train.reshape(-1, 28 * 28)
     self._x_train, self._y_train = rus.fit_resample(self.get_training_image(), self.get_training_label())
+    self._x_train = self._x_train.reshape(-1, 28, 28)
 
   def induce_asym_noise(self, noise_ratio=40):
     source_class = [7, 2, 3, 5, 6]
