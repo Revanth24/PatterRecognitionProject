@@ -22,7 +22,6 @@ class SVMModel(MNISTClassificationBaseModel):
 
   def _define_model(self):
     return svm.SVC()
-    # return svm.SVC(kernel='rbf', gamma=1, C=10)
 
   def train_and_predict(self):
     clf = self._define_model()
